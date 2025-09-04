@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package abi;
+
+// 来自客户端的命令请求
+message CommandRequest {
+  oneof request_data {
+    Hget hget = 1;
+    Hset hset = 2;
+    Hdel hdel = 3;
+  }
+}
+
+// 服务器的响应
+message CommandResponse {
+  // 状态码；复用 HTTP 2xx/4xx/5xx 状态码
+  uint32 status = 1;
+  // 如果不是 2xx，message 里包含详细的信息
+  string message = 2;
+  // 成功返回的 values
+  repeated Value values = 3;
+  // 成功返回的 kv pairs
+  repeated Kvpair pairs = 4;
+}
+
+// 从 table 中获取一个 key，返回 value
+message Hget {
+  string table = 1;
+  string key = 2;
+}
+
+// 返回的值
+message Value {
+  oneof value {
+    string string = 1;
+    bytes binary = 2;
+    int64 integer = 3;
+    double float = 4;
+    bool bool = 5;
+  }
+}
+
+
+// 往 table 里存一个 kvpair，
+// 如果 table 不存在就创建这个 table
+message Hset {
+  string table = 1;
+  Kvpair pair = 2;
+}
+
+// 返回的 kvpair
+message Kvpair {
+  string key = 1;
+  Value value = 2;
+}
+
+
+// 从 table 中删除一个 key，返回它之前的值
+message Hdel {
+  string table = 1;
+  string key = 2;
+}

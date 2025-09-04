@@ -1,0 +1,155 @@
+use crate::{KvError, Storage, Value};
+use anyhow::Result;
+use dashmap::{DashMap, mapref::one::Ref};
+
+#[derive(Default)]
+pub struct MemTable {
+    // table_2_kv, kv => k_2_v
+    tables: DashMap<String, DashMap<String, Value>>,
+}
+
+impl MemTable {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn get_or_create_table(&self, name: &str) -> Ref<String, DashMap<String, Value>> {
+        match self.tables.get(name) {
+            Some(table) => table,
+            None => {
+                let table_entry = self.tables.entry(name.into()).or_default();
+                table_entry.downgrade()
+            }
+        }
+    }
+}
+
+impl Storage for MemTable {
+    fn get(&self, table_name: &str, key: &str) -> Result<Option<Value>, KvError> {
+        // get or create table
+        // get value from table
+        let table_entry = self.get_or_create_table(&table_name);
+        let option_key_entry = table_entry.get(key);
+        let option_value = option_key_entry.map(|key_entry| {
+            let value = key_entry.value();
+            value.clone()
+        });
+        Ok(option_value)
+    }
+
+    fn set(&self, table_name: &str, key: String, value: Value) -> Result<Option<Value>, KvError> {
+        let table_entry = self.get_or_create_table(table_name);
+        let option_res = table_entry.insert(key, value);
+        Ok(option_res)
+    }
+
+    fn del(&self, table_name: &str, key: &str) -> Result<Option<Value>, KvError> {
+        let table_entry = self.get_or_create_table(table_name);
+        let option_prev_val = table_entry.remove(key).map(|(_, v)| v);
+        Ok(option_prev_val)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn get_or_create_table_should_work() {
+        let store = MemTable::new();
+        assert!(!store.tables.contains_key("t1"));
+        store.get_or_create_table("t1");
+        assert!(store.tables.contains_key("t1"));
+        // println!("memtable test done!");
+    }
+}
+
+// use crate::{KvError, Kvpair, Storage, StorageIter, Value};
+// use dashmap::{DashMap, mapref::one::Ref};
+
+// #[derive(Clone, Debug, Default)]
+// pub struct MemTable {
+//     tables: DashMap<String, DashMap<String, Value>>,
+// }
+
+// impl MemTable {
+//     pub fn new() -> Self {
+//         Self::default()
+//     }
+//     /// 使用 DashMap 构建的 MemTable，实现了 Storage trait
+//     fn get_or_create_table(&self, name: &str) -> Ref<String, DashMap<String, Value>> {
+//         match self.tables.get(name) {
+//             Some(table) => table,
+//             None => {
+//                 let entry = self.tables.entry(name.into()).or_default();
+//                 entry.downgrade()
+//             }
+//         }
+//     }
+// }
+
+// impl Storage for MemTable {
+//     fn get(&self, table: &str, key: &str) -> Result<Option<Value>, KvError> {
+//         let table = self.get_or_create_table(table);
+//         Ok(table.get(key).map(|v| v.value().clone()))
+//     }
+//     /// 从一个 HashTable 里设置一个 key 的 value，返回旧的 value
+//     fn set(
+//         &self,
+//         table: &str,
+//         key: impl Into<String>,
+//         value: impl Into<Value>,
+//     ) -> Result<Option<Value>, KvError> {
+//         let key = key.into();
+//         let value = value.into();
+//         let table = self.get_or_create_table(table);
+//         Ok(table.insert(key, value))
+//     }
+//     /// 查看 HashTable 中是否有 key
+//     fn contains(&self, table: &str, key: &str) -> Result<bool, KvError> {
+//         let table = self.get_or_create_table(table);
+//         Ok(table.contains_key(key))
+//     }
+//     /// 从 HashTable 中删除一个 key
+//     fn del(&self, table: &str, key: &str) -> Result<Option<Value>, KvError> {
+//         let table = self.get_or_create_table(table);
+//         Ok(table.remove(key).map(|(_k, v)| v))
+//     }
+//     /// 遍历 HashTable，返回所有 kv pair（这个接口不好）
+//     fn get_all(&self, table: &str) -> Result<Vec<Kvpair>, KvError> {
+//         let table = self.get_or_create_table(table);
+//         Ok(table
+//             .iter()
+//             .map(|v| Kvpair::new(v.key(), v.value().clone()))
+//             .collect())
+//     }
+//     /// 遍历 HashTable，返回 kv pair 的 Iterator
+//     fn get_iter(&self, table: &str) -> Result<Box<dyn Iterator<Item = Kvpair>>, KvError> {
+//         let table = self.get_or_create_table(table).clone();
+//         let iter = StorageIter::new(table.into_iter());
+//         Ok(Box::new(iter))
+//     }
+//     // fn get_iter(&self, table: &str) -> Result<Box<dyn Iterator<Item = Kvpair>>, KvError> {
+//     //     // 使用 clone() 来获取 table 的 snapshot
+//     //     let table = self.get_or_create_table(table).clone();
+//     //     let iter = StorageIter::new(table.into_iter());
+//     //     Ok(Box::new(iter))
+//     // }
+// }
+
+// impl From<(String, Value)> for Kvpair {
+//     fn from(data: (String, Value)) -> Self {
+//         Kvpair::new(data.0, data.1)
+//     }
+// }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     #[test]
+//     fn get_or_create_table_should_work() {
+//         let store = MemTable::new();
+//         assert!(!store.tables.contains_key("t1"));
+//         store.get_or_create_table("t1");
+//         assert!(store.tables.contains_key("t1"));
+//     }
+// }
