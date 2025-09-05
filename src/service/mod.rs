@@ -1,13 +1,13 @@
 mod cmd_impl;
 
-use crate::{CommandRequest, CommandResponse, KvError, RequestData, Storage};
+use crate::{CommandRequest, CommandResponse, KvError, MemTable, RequestData, Storage};
 use std::sync::Arc;
 
 pub trait CmdService {
     fn execute(self, store: &impl Storage) -> CommandResponse;
 }
 
-pub struct Service<Store>
+pub struct Service<Store = MemTable>
 where
     Store: Storage,
 {

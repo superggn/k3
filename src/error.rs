@@ -16,4 +16,6 @@ pub enum KvError {
     DecodeError(#[from] prost::DecodeError),
     #[error("Failed to access sled db")]
     SledError(#[from] sled::Error),
+    #[error("futures I/O error")]
+    IoError(#[from] futures::io::Error),
 }
