@@ -2,6 +2,7 @@ use crate::KvError;
 
 use abi::command_request::RequestData;
 use abi::*;
+use bytes::Bytes;
 use http::StatusCode;
 use prost::Message;
 use std::convert::TryFrom;
@@ -77,6 +78,22 @@ impl From<u32> for Value {
         }
     }
 }
+
+impl From<Bytes> for Value {
+    fn from(buf: Bytes) -> Self {
+        Self {
+            value: Some(value::Value::Binary(buf.to_vec())),
+        }
+    }
+}
+
+// impl From<Bytes> for Value {
+//     fn from(buf: Bytes) -> Self {
+//         Self {
+//             value: Some(value::Value::Binary(buf)),
+//         }
+//     }
+// }
 
 impl TryFrom<&[u8]> for Value {
     type Error = KvError;

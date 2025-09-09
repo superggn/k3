@@ -9,6 +9,9 @@ pub enum KvError {
     InvalidCommand(String),
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Frame is larger than max size")]
+    FrameError,
+
     // auto impl error conversion
     #[error("Failed to encode protobuf message")]
     EncodeError(#[from] prost::EncodeError),
@@ -16,4 +19,6 @@ pub enum KvError {
     DecodeError(#[from] prost::DecodeError),
     #[error("Failed to access sled db")]
     SledError(#[from] sled::Error),
+    #[error("futures I/O error")]
+    IoError(#[from] futures::io::Error),
 }
