@@ -1,13 +1,12 @@
 pub mod frame;
+pub mod handle;
 pub mod stream;
 
 pub use frame::{FrameCodec, read_frame};
+pub use handle::{YamuxHandle, spawn_yamux_driver};
 
-use bytes::BytesMut;
 use futures::{SinkExt, StreamExt};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-
-use tracing::info;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{CommandRequest, CommandResponse, KvError, ProstStream, Service};
 
@@ -135,11 +134,11 @@ mod tests {
         // hset
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
         let resp = client.execute(cmd).await?;
-        assert_res_ok(resp, &[Value::default()], &[]);
+        assert_res_ok(&resp, &[Value::default()], &[]);
         // hset
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
         let resp2 = client.execute(cmd).await?;
-        assert_res_ok(resp2, &[Value::from("v1".to_string())], &[]);
+        assert_res_ok(&resp2, &[Value::from("v1".to_string())], &[]);
 
         Ok(())
     }
@@ -152,10 +151,10 @@ mod tests {
         let v: Value = Bytes::from(vec![0u8; 16384]).into();
         let cmd = CommandRequest::new_hset("t2", "k2", v.clone());
         let resp = client.execute(cmd).await?;
-        assert_res_ok(resp, &[Value::default()], &[]);
+        assert_res_ok(&resp, &[Value::default()], &[]);
         let cmd = CommandRequest::new_hget("t2", "k2");
         let resp = client.execute(cmd).await?;
-        assert_res_ok(resp, &[v], &[]);
+        assert_res_ok(&resp, &[v], &[]);
         Ok(())
     }
 

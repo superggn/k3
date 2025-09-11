@@ -1,10 +1,8 @@
 use anyhow::Result;
-use async_prost::AsyncProstStream;
-use futures::{SinkExt, StreamExt};
-use k3::{CommandRequest, CommandResponse, MemTable, service::ServiceInner};
+use k3::{CommandRequest, CommandResponse, MemTable, ServerStream, service::ServiceInner};
 use tokio::net::TcpListener;
 
-// service => chain operation + hooks
+// third party stream => customized stream
 #[tokio::main]
 async fn main() -> Result<()> {
     let addr = "127.0.0.1:9527";
@@ -15,24 +13,11 @@ async fn main() -> Result<()> {
         .add_resp_hook(|resp: &mut CommandResponse| println!("hook 2 - resp: {:?}", resp));
     let service = svc_builder.build();
     loop {
-        // todo add service_builder
         let svc_cl = service.clone();
         let (stream, _) = listener.accept().await?;
         tokio::spawn(async move {
-            // pseudo code
-            // tokio::spawn({
-            //      let server_stream = ServerStream::new(stream, svc_cl);
-            //      server_stream.process();
-            // })
-            let mut stream =
-                AsyncProstStream::<_, CommandRequest, CommandResponse, _>::from(stream).for_async();
-            while let Some(Ok(cmd)) = stream.next().await {
-                println!("cmd: {:?}", cmd);
-                // impl service
-                let resp = svc_cl.process_request(cmd);
-                println!("resp: {:?}", resp);
-                stream.send(resp).await.unwrap();
-            }
+            let server_stream = ServerStream::new(stream, svc_cl);
+            server_stream.process().await.unwrap();
         });
     }
 }

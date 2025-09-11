@@ -39,6 +39,35 @@ impl CommandRequest {
     }
 }
 
+impl CommandResponse {
+    pub fn ok() -> Self {
+        CommandResponse {
+            status: StatusCode::OK.as_u16() as _,
+            ..Default::default()
+        }
+    }
+
+    pub fn internal_error(msg: String) -> Self {
+        CommandResponse {
+            status: StatusCode::INTERNAL_SERVER_ERROR.as_u16() as _,
+            message: msg,
+            ..Default::default()
+        }
+    }
+
+    /// 转换成 string 做错误处理
+    pub fn format(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl Value {
+    /// 转换成 string 做错误处理
+    pub fn format(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl Kvpair {
     pub fn new(key: impl Into<String>, value: Value) -> Self {
         Self {
@@ -73,6 +102,14 @@ impl From<i32> for Value {
 }
 impl From<u32> for Value {
     fn from(value: u32) -> Self {
+        Self {
+            value: Some(value::Value::Integer(value.into())),
+        }
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
         Self {
             value: Some(value::Value::Integer(value.into())),
         }
@@ -122,7 +159,7 @@ impl From<KvError> for CommandResponse {
             pairs: vec![],
         };
         match e {
-            KvError::NotFound(_, _) => result.status = StatusCode::NOT_FOUND.as_u16() as _,
+            KvError::NotFound(_) => result.status = StatusCode::NOT_FOUND.as_u16() as _,
             KvError::InvalidCommand(_) => result.status = StatusCode::BAD_REQUEST.as_u16() as _,
             _ => {}
         }
@@ -136,5 +173,30 @@ impl TryFrom<Value> for Vec<u8> {
         let mut buf = Vec::with_capacity(v.encoded_len());
         v.encode(&mut buf)?;
         Ok(buf)
+    }
+}
+
+impl TryFrom<&Value> for i64 {
+    type Error = KvError;
+
+    fn try_from(v: &Value) -> Result<Self, Self::Error> {
+        match v.value {
+            Some(value::Value::Integer(i)) => Ok(i),
+            _ => Err(KvError::ConvertError(v.format(), "Integer")),
+        }
+    }
+}
+
+impl TryFrom<&CommandResponse> for i64 {
+    type Error = KvError;
+
+    fn try_from(value: &CommandResponse) -> Result<Self, Self::Error> {
+        if value.status != StatusCode::OK.as_u16() as u32 {
+            return Err(KvError::ConvertError(value.format(), "CommandResponse"));
+        }
+        match value.values.get(0) {
+            Some(v) => v.try_into(),
+            None => Err(KvError::ConvertError(value.format(), "CommandResponse")),
+        }
     }
 }

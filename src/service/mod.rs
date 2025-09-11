@@ -1,4 +1,5 @@
 mod cmd_impl;
+mod topic;
 
 use crate::{CommandRequest, CommandResponse, KvError, MemTable, RequestData, Storage};
 use std::sync::Arc;
@@ -107,10 +108,55 @@ where
     pub fn process_request(&self, cmd_req: CommandRequest) -> CommandResponse {
         self.inner.req_hooks.exec_all(&cmd_req);
         let mut resp = exec_cmd(cmd_req, &self.inner.store);
+        // if resp == CommandResponse::default() {
+        //     exec_stream_cmd(cmd_req, store)
+        // } else {
+        //     self.inner.resp_hooks.exec_all(&mut resp);
+        //     resp
+        // }
+        // todo => update exec_cmd output format
+        //      => update exec_stream_cmd output format
+        // resp_rx
         self.inner.resp_hooks.exec_all(&mut resp);
         resp
     }
 }
+
+// todo topic_stream
+//  server
+//  let resp_rx = service.process_request(cmd);
+//  tokio::spawn(async move {
+//      while let Some(resp) = resp_rx.next() {
+//          self.stream.send(resp).await.unwrap();
+//      }
+//  });
+//  client
+//  let cmd = ...;
+//  let client = ClientStream::new(stream);
+//  let resp_rx = client.exec(cmd);
+//  oneshot or other stuff?
+//  ...
+
+// impl<Store: Storage> Service<Store> {
+//     pub fn execute(&self, cmd: CommandRequest) -> StreamingResponse {
+//         debug!("Got request: {:?}", cmd);
+//         self.inner.on_received.notify(&cmd);
+//         let mut res = dispatch(cmd.clone(), &self.inner.store);
+
+//         if res == CommandResponse::default() {
+//             dispatch_stream(cmd, Arc::clone(&self.broadcaster))
+//         } else {
+//             debug!("Executed response: {:?}", res);
+//             self.inner.on_executed.notify(&res);
+//             self.inner.on_before_send.notify(&mut res);
+//             if !self.inner.on_before_send.is_empty() {
+//                 debug!("Modified response: {:?}", res);
+//             }
+
+//             Box::pin(stream::once(async { Arc::new(res) }))
+//         }
+//     }
+// }
 
 // operate on DB & gen response
 pub fn exec_cmd(cmd_req: CommandRequest, store: &impl Storage) -> CommandResponse {
@@ -127,13 +173,25 @@ pub fn exec_cmd(cmd_req: CommandRequest, store: &impl Storage) -> CommandRespons
 use crate::{Kvpair, Value};
 
 #[cfg(test)]
-pub fn assert_res_ok(mut res: CommandResponse, values: &[Value], pairs: &[Kvpair]) {
-    res.pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+pub fn assert_res_ok(res: &CommandResponse, values: &[Value], pairs: &[Kvpair]) {
+    let mut sorted_pairs = res.pairs.clone();
+    sorted_pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
     assert_eq!(res.status, 200);
     assert_eq!(res.message, "");
     assert_eq!(res.values, values);
-    assert_eq!(res.pairs, pairs);
+    assert_eq!(sorted_pairs, pairs);
 }
+
+// 测试成功返回的结果
+// #[cfg(test)]
+// pub fn assert_res_ok(res: &CommandResponse, values: &[Value], pairs: &[Kvpair]) {
+//     let mut sorted_pairs = res.pairs.clone();
+//     sorted_pairs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+//     assert_eq!(res.status, 200);
+//     assert_eq!(res.message, "");
+//     assert_eq!(res.values, values);
+//     assert_eq!(sorted_pairs, pairs);
+// }
 
 // 测试失败返回的结果
 #[cfg(test)]

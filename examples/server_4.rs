@@ -4,7 +4,7 @@ use futures::{SinkExt, StreamExt};
 use k3::{CommandRequest, CommandResponse, MemTable, service::ServiceInner};
 use tokio::net::TcpListener;
 
-// service => chain operation + hooks
+// service => service_builder + chain operation + hooks
 #[tokio::main]
 async fn main() -> Result<()> {
     let addr = "127.0.0.1:9527";
@@ -15,7 +15,6 @@ async fn main() -> Result<()> {
         .add_resp_hook(|resp: &mut CommandResponse| println!("hook 2 - resp: {:?}", resp));
     let service = svc_builder.build();
     loop {
-        // todo add service_builder
         let svc_cl = service.clone();
         let (stream, _) = listener.accept().await?;
         tokio::spawn(async move {

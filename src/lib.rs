@@ -12,6 +12,7 @@ pub use error::KvError;
 pub use network::frame::{FrameCodec, read_frame};
 pub use network::stream::ProstStream;
 pub use network::utils;
+pub use network::{ClientStream, ServerStream, YamuxHandle, spawn_yamux_driver};
 pub use service::CmdService;
 pub use service::Service;
 pub use service::ServiceInner;

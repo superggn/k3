@@ -6,7 +6,7 @@ impl CmdService for Hget {
     fn execute(self, store: &impl Storage) -> CommandResponse {
         match store.get(&self.table, &self.key) {
             Ok(Some(v)) => v.into(),
-            Ok(None) => KvError::NotFound(self.table, self.key).into(),
+            Ok(None) => KvError::NotFound(format!("table {} key {}", self.table, self.key)).into(),
             Err(e) => e.into(),
         }
     }
@@ -48,7 +48,7 @@ mod tests {
         exec_cmd(cmd, &store);
         let cmd = CommandRequest::new_hget("score", "u1");
         let res = exec_cmd(cmd, &store);
-        assert_res_ok(res, &[10.into()], &[]);
+        assert_res_ok(&res, &[10.into()], &[]);
     }
 
     #[test]
@@ -67,9 +67,9 @@ mod tests {
         assert_res_error(res, 404, "Not found");
         let cmd = CommandRequest::new_hset("t1", "hello", "world".into());
         let res = exec_cmd(cmd.clone(), &store);
-        assert_res_ok(res, &[Value::default()], &[]);
+        assert_res_ok(&res, &[Value::default()], &[]);
         let res = exec_cmd(cmd, &store);
-        assert_res_ok(res, &["world".into()], &[]);
+        assert_res_ok(&res, &["world".into()], &[]);
     }
 
     #[test]
@@ -78,10 +78,10 @@ mod tests {
         set_key_pairs("t1", vec![("u1", "v1")], &store);
         let cmd = CommandRequest::new_hdel("t1", "u2");
         let res = exec_cmd(cmd, &store);
-        assert_res_ok(res, &[Value::default()], &[]);
+        assert_res_ok(&res, &[Value::default()], &[]);
         let cmd = CommandRequest::new_hdel("t1", "u1");
         let res = exec_cmd(cmd, &store);
-        assert_res_ok(res, &["v1".into()], &[]);
+        assert_res_ok(&res, &["v1".into()], &[]);
     }
 
     fn set_key_pairs<T: Into<Value>>(table: &str, pairs: Vec<(&str, T)>, store: &impl Storage) {
